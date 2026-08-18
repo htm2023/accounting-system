@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { Navbar, Nav, Container, Button } from 'react-bootstrap'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
@@ -11,6 +11,7 @@ const Layout = () => {
   const navigate = useNavigate()
   const user = useSelector((state) => state.auth.user)
   const { t, i18n } = useTranslation()
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const toggleLanguage = () => {
     const newLang = i18n.language === 'ar' ? 'en' : 'ar'
@@ -34,6 +35,14 @@ const Layout = () => {
       {/* الشريط العلوي */}
       <Navbar bg="dark" variant="dark" expand="lg">
         <Container fluid>
+          <Button
+            variant="outline-light"
+            size="sm"
+            className="d-lg-none me-2"
+            onClick={() => setSidebarOpen((prev) => !prev)}
+          >
+            ☰
+          </Button>
           <Navbar.Brand as={NavLink} to="/dashboard">
             {t('appTitle')}
           </Navbar.Brand>
@@ -56,53 +65,84 @@ const Layout = () => {
 
       <div className="d-flex flex-grow-1">
         {/* الشريط الجانبي */}
-        <div className="bg-light p-3" style={{ width: '230px', minHeight: '100%' }}>
-          <Nav className="flex-column">
+        <div className={`sidebar p-3${sidebarOpen ? ' show' : ''}`}>
+          <Nav className="flex-column" onClick={() => setSidebarOpen(false)}>
             <NavLink to="/dashboard" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               {t('dashboard')}
             </NavLink>
-            <NavLink to="/accounts" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('accounts')}
-            </NavLink>
-            <NavLink to="/journal-entries" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('journalEntries')}
-            </NavLink>
-            <NavLink to="/parties" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('parties')}
-            </NavLink>
-            <NavLink to="/invoices" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('invoices')}
-            </NavLink>
-            <NavLink to="/payments" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('payments')}
-            </NavLink>
-            <NavLink to="/inventory" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('inventory')}
-            </NavLink>
-            <NavLink to="/currencies" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('currencies')}
-            </NavLink>
-            <NavLink to="/cost-centers" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('costCenters')}
-            </NavLink>
-            <NavLink to="/employees" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('employees')}
-            </NavLink>
-            <NavLink to="/payslips" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('payslips')}
-            </NavLink>
-            <NavLink to="/fixed-assets" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('fixedAssets')}
-            </NavLink>
-            <NavLink to="/depreciation-schedules" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('depreciationSchedules')}
-            </NavLink>
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/accounts" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('accounts')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/journal-entries" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('journalEntries')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/parties" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('parties')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/invoices" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('invoices')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/payments" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('payments')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/inventory" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('inventory')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/currencies" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('currencies')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/cost-centers" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('costCenters')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/employees" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('employees')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/payslips" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('payslips')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/fixed-assets" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('fixedAssets')}
+              </NavLink>
+            )}
+            {(user?.role === 'Admin' || user?.role === 'Accountant') && (
+              <NavLink to="/depreciation-schedules" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('depreciationSchedules')}
+              </NavLink>
+            )}
             <NavLink to="/reports" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
               {t('reports')}
             </NavLink>
-            <NavLink to="/audit-logs" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
-              {t('auditLogs')}
-            </NavLink>
+            {user?.role === 'Admin' && (
+              <NavLink to="/audit-logs" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('auditLogs')}
+              </NavLink>
+            )}
+            {user?.role === 'Admin' && (
+              <NavLink to="/users" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+                {t('users')}
+              </NavLink>
+            )}
           </Nav>
         </div>
 

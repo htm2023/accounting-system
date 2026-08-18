@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import {
   getDepreciationSchedules,
   createDepreciationSchedule,
@@ -22,6 +23,9 @@ const initialFormState = {
 
 const DepreciationSchedules = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
+  const canPost = role === 'Admin'
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
   const [fiscalPeriods, setFiscalPeriods] = useState([])
@@ -162,9 +166,11 @@ const DepreciationSchedules = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addDepreciationSchedule')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addDepreciationSchedule')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -195,16 +201,18 @@ const DepreciationSchedules = () => {
                 <td>{schedule.accumulated_depreciation}</td>
                 <td>
                   {schedule.is_posted ? (
-                    <Badge bg="success">{t('posted')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('posted')}</Badge>
                   ) : (
-                    <Badge bg="secondary">{t('draft')}</Badge>
+                    <Badge bg="secondary" className="badge-status">{t('draft')}</Badge>
                   )}
                 </td>
                 <td>
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(schedule)}>
-                    {t('edit')}
-                  </Button>
-                  {!schedule.is_posted && (
+                  {canManage && (
+                    <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(schedule)}>
+                      {t('edit')}
+                    </Button>
+                  )}
+                  {!schedule.is_posted && canPost && (
                     <Button
                       variant="outline-primary"
                       size="sm"
@@ -215,9 +223,11 @@ const DepreciationSchedules = () => {
                       {postingId === schedule.id ? t('posting') : t('postDepreciation')}
                     </Button>
                   )}
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(schedule.id)}>
-                    {t('delete')}
-                  </Button>
+                  {canManage && (
+                    <Button variant="outline-danger" size="sm" onClick={() => handleDelete(schedule.id)}>
+                      {t('delete')}
+                    </Button>
+                  )}
                 </td>
               </tr>
             ))

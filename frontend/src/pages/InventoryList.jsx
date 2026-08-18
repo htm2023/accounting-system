@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col, Tabs, Tab } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getProducts, getStockMovements, createProduct } from '../api/inventory'
 import { getAccounts } from '../api/accounts'
 import { getErrorMessage } from '../utils/errorHandler'
@@ -21,6 +22,8 @@ const initialProductForm = {
 
 const InventoryList = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [products, setProducts] = useState([])
   const [movements, setMovements] = useState([])
   const [accounts, setAccounts] = useState([])
@@ -131,9 +134,11 @@ const InventoryList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addProduct')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addProduct')}
+            </Button>
+          )}
         </div>
       </div>
 

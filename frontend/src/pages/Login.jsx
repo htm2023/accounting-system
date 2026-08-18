@@ -45,10 +45,10 @@ const Login = () => {
   }
 
   return (
-    <Container fluid className="bg-light min-vh-100 d-flex align-items-center justify-content-center">
+    <Container fluid className="login-page d-flex align-items-center justify-content-center">
       <Row className="w-100 justify-content-center">
         <Col xs={12} sm={8} md={6} lg={4}>
-          <Card>
+          <Card className="login-card">
             <Card.Body className="p-4">
               <h3 className="text-center mb-4">{t('login')}</h3>
               {error && <Alert variant="danger">{error}</Alert>}

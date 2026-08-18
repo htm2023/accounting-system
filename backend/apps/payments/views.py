@@ -15,7 +15,7 @@ class ReceiptPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = ReceiptPaymentSerializer
 
     def get_permissions(self):
-        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+        if self.action in ['create', 'update', 'partial_update', 'destroy', 'allocate']:
             self.permission_classes = [IsAccountant]
         elif self.action == 'post':
             self.permission_classes = [IsAdmin]

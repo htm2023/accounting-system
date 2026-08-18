@@ -235,7 +235,7 @@ const Currencies = () => {
                     <td>{currency.code}</td>
                     <td>{currency.name}</td>
                     <td>
-                      {currency.is_base_currency ? <Badge bg="success">{t('yes')}</Badge> : <Badge bg="secondary">{t('no')}</Badge>}
+                      {currency.is_base_currency ? <Badge bg="success" className="badge-status">{t('yes')}</Badge> : <Badge bg="secondary" className="badge-status">{t('no')}</Badge>}
                     </td>
                     <td>
                       <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEditCurrency(currency)}>

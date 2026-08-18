@@ -115,7 +115,7 @@ const AuditLogsList = () => {
               <tr key={log.id}>
                 <td>{new Date(log.timestamp).toLocaleString()}</td>
                 <td>{log.user_username || log.user_full_name || '-'}</td>
-                <td><Badge bg="secondary">{log.action}</Badge></td>
+                <td><Badge bg="secondary" className="badge-status">{log.action}</Badge></td>
                 <td>{log.model_name}</td>
                 <td>{log.object_id}</td>
                 <td>{log.description}</td>

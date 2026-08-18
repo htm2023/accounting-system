@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getInvoices, createInvoice, postInvoice, downloadInvoicePDF } from '../api/invoices'
 import { getParties } from '../api/parties'
 import { getFiscalPeriods } from '../api/fiscal'
@@ -28,6 +29,9 @@ const initialFormState = {
 
 const InvoicesList = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
+  const canPost = role === 'Admin'
   const [invoices, setInvoices] = useState([])
   const [parties, setParties] = useState([])
   const [fiscalPeriods, setFiscalPeriods] = useState([])
@@ -202,9 +206,11 @@ const InvoicesList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addInvoice')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addInvoice')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -233,7 +239,7 @@ const InvoicesList = () => {
               <tr key={inv.id}>
                 <td>{inv.invoice_number}</td>
                 <td>
-                  <Badge bg={inv.invoice_type === 'Sale' ? 'primary' : 'info'}>
+                  <Badge bg={inv.invoice_type === 'Sale' ? 'primary' : 'info'} className="badge-status">
                     {inv.invoice_type === 'Sale' ? t('sale') : t('purchase')}
                   </Badge>
                 </td>
@@ -242,12 +248,12 @@ const InvoicesList = () => {
                 <td>{inv.total_amount}</td>
                 <td>{inv.paid_amount}</td>
                 <td>
-                  <Badge bg={statusBadge(inv.status).bg}>
+                  <Badge bg={statusBadge(inv.status).bg} className="badge-status">
                     {statusBadge(inv.status).label}
                   </Badge>
                 </td>
                 <td>
-                  {inv.status === 'Draft' && (
+                  {inv.status === 'Draft' && canPost && (
                     <Button
                       variant="outline-success"
                       size="sm"

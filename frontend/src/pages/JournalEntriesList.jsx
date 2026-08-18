@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getJournalEntries, createJournalEntry } from '../api/journalEntries'
 import { getAccounts } from '../api/accounts'
 import { getFiscalPeriods, getFiscalYears } from '../api/fiscal'
@@ -8,6 +9,8 @@ import { getErrorMessage } from '../utils/errorHandler'
 import Pagination from '../components/Pagination'
 
 const JournalEntriesList = () => {
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [entries, setEntries] = useState([])
   const [accounts, setAccounts] = useState([])
   const [fiscalPeriods, setFiscalPeriods] = useState([])
@@ -146,9 +149,11 @@ const JournalEntriesList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addJournalEntry')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addJournalEntry')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -179,9 +184,9 @@ const JournalEntriesList = () => {
                 <td>{fiscalPeriods.find((p) => p.id === entry.fiscal_period)?.name || '-'}</td>
                 <td>
                   {entry.is_posted ? (
-                    <Badge bg="success">{t('posted')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('posted')}</Badge>
                   ) : (
-                    <Badge bg="warning">{t('draft')}</Badge>
+                    <Badge bg="warning" className="badge-status">{t('draft')}</Badge>
                   )}
                 </td>
                 <td>{entry.source_type}</td>

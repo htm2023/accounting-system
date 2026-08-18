@@ -141,7 +141,7 @@ const CostCenters = () => {
                 <td>{cc.name_ar || '-'}</td>
                 <td>{cc.name_en || '-'}</td>
                 <td>
-                  {cc.is_active ? <Badge bg="success">{t('active')}</Badge> : <Badge bg="danger">{t('inactive')}</Badge>}
+                  {cc.is_active ? <Badge bg="success" className="badge-status">{t('active')}</Badge> : <Badge bg="danger" className="badge-status">{t('inactive')}</Badge>}
                 </td>
                 <td>
                   <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(cc)}>

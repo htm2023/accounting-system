@@ -1,0 +1,146 @@
+:root {
+  --primary: #0d6efd;
+  --primary-dark: #0b5ed7;
+  --accent: #ffc107;
+  --success: #198754;
+  --info: #0dcaf0;
+  --warning: #ffc107;
+  --danger: #dc3545;
+  --light-bg: #f8f9fa;
+  --dark: #212529;
+}
+
+body {
+  font-family: 'Cairo', 'Segoe UI', Tahoma, sans-serif;
+  background-color: var(--light-bg);
+  line-height: 1.6;
+}
+
+/* الشريط الجانبي */
+.sidebar {
+  background: linear-gradient(180deg, #1e2a38 0%, #0f1822 100%);
+  min-height: 100vh;
+  width: 230px;
+  transition: all 0.3s;
+}
+
+.sidebar .nav-link {
+  color: #b0bec5;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  padding: 10px 15px;
+  transition: all 0.2s;
+}
+
+.sidebar .nav-link:hover {
+  background-color: rgba(255,255,255,0.1);
+  color: #ffffff;
+  transform: translateX(5px);
+}
+
+html[dir="rtl"] .sidebar .nav-link:hover {
+  transform: translateX(-5px);
+}
+
+.sidebar .nav-link.active {
+  background-color: var(--primary);
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(13,110,253,0.3);
+}
+
+/* البطاقات */
+.card {
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.card-stat {
+  border-radius: 16px;
+  border-left: 5px solid var(--primary);
+  background: white;
+}
+
+.card-stat .value {
+  font-size: 2rem;
+  font-weight: bold;
+  color: var(--primary);
+}
+
+/* الجداول */
+.table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.table thead {
+  background-color: #e9ecef;
+  font-weight: 600;
+}
+
+.table-hover tbody tr:hover {
+  background-color: #e7f1ff;
+}
+
+/* أزرار */
+.btn {
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  border-color: var(--primary);
+}
+
+.btn-primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
+}
+
+/* شاشة تسجيل الدخول */
+.login-page {
+  background: linear-gradient(135deg, #1e2a38 0%, #0d6efd 100%);
+  min-height: 100vh;
+}
+
+.login-card {
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+
+/* الشارات */
+.badge-status {
+  font-size: 0.85rem;
+  padding: 0.4em 0.8em;
+  border-radius: 20px;
+}
+
+/* تحسين الموبايل */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed;
+    inset-inline-start: -230px;
+    z-index: 1000;
+    transition: inset-inline-start 0.3s;
+  }
+  .sidebar.show {
+    inset-inline-start: 0;
+  }
+  .table {
+    font-size: 0.85rem;
+  }
+}

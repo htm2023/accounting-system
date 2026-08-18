@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import {
   getReceiptPayments,
   createReceiptPayment,
@@ -26,6 +27,9 @@ const initialFormState = {
 
 const PaymentsList = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
+  const canPost = role === 'Admin'
   const [payments, setPayments] = useState([])
   const [parties, setParties] = useState([])
   const [fiscalPeriods, setFiscalPeriods] = useState([])
@@ -166,9 +170,11 @@ const PaymentsList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addPayment')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addPayment')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -198,7 +204,7 @@ const PaymentsList = () => {
               <tr key={pay.id}>
                 <td>{pay.number}</td>
                 <td>
-                  <Badge bg={pay.document_type === 'Receipt' ? 'success' : 'warning'}>
+                  <Badge bg={pay.document_type === 'Receipt' ? 'success' : 'warning'} className="badge-status">
                     {pay.document_type === 'Receipt' ? t('receiptLabel') : t('paymentLabel')}
                   </Badge>
                 </td>
@@ -209,31 +215,31 @@ const PaymentsList = () => {
                 <td>{pay.unallocated_amount}</td>
                 <td>
                   {pay.journal_entry ? (
-                    <Badge bg="success">{t('posted')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('posted')}</Badge>
                   ) : (
-                    <Badge bg="warning">{t('draft')}</Badge>
+                    <Badge bg="warning" className="badge-status">{t('draft')}</Badge>
                   )}
                 </td>
                 <td>
-                  {!pay.journal_entry && (
-                    <>
-                      <Button
-                        variant="outline-primary"
-                        size="sm"
-                        className="me-2"
-                        onClick={() => handleOpenAllocate(pay)}
-                      >
-                        {t('allocate')}
-                      </Button>
-                      <Button
-                        variant="outline-success"
-                        size="sm"
-                        onClick={() => handlePost(pay)}
-                        disabled={postingId === pay.id || pay.unallocated_amount > 0}
-                      >
-                        {postingId === pay.id ? t('posting') : t('post')}
-                      </Button>
-                    </>
+                  {!pay.journal_entry && canManage && (
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      className="me-2"
+                      onClick={() => handleOpenAllocate(pay)}
+                    >
+                      {t('allocate')}
+                    </Button>
+                  )}
+                  {!pay.journal_entry && canPost && (
+                    <Button
+                      variant="outline-success"
+                      size="sm"
+                      onClick={() => handlePost(pay)}
+                      disabled={postingId === pay.id || pay.unallocated_amount > 0}
+                    >
+                      {postingId === pay.id ? t('posting') : t('post')}
+                    </Button>
                   )}
                 </td>
               </tr>

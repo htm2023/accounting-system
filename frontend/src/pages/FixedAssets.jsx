@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getFixedAssets, createFixedAsset, updateFixedAsset, deleteFixedAsset } from '../api/fixedAssets'
 import { getAccounts } from '../api/accounts'
 import { getErrorMessage } from '../utils/errorHandler'
@@ -21,6 +22,8 @@ const initialFormState = {
 
 const FixedAssets = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [assets, setAssets] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -147,9 +150,11 @@ const FixedAssets = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addFixedAsset')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addFixedAsset')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -184,18 +189,22 @@ const FixedAssets = () => {
                 <td>{asset.cost}</td>
                 <td>
                   {asset.status === 'Active' ? (
-                    <Badge bg="success">{t('active')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('active')}</Badge>
                   ) : (
-                    <Badge bg="danger">{t('disposed')}</Badge>
+                    <Badge bg="danger" className="badge-status">{t('disposed')}</Badge>
                   )}
                 </td>
                 <td>
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(asset)}>
-                    {t('edit')}
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(asset.id)}>
-                    {t('delete')}
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(asset)}>
+                        {t('edit')}
+                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(asset.id)}>
+                        {t('delete')}
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))

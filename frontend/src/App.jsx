@@ -18,6 +18,7 @@ import Payslips from './pages/Payslips'
 import Employees from './pages/Employees'
 import FixedAssets from './pages/FixedAssets'
 import DepreciationSchedules from './pages/DepreciationSchedules'
+import UsersList from './pages/UsersList'
 
 const App = () => {
   return (
@@ -33,20 +34,126 @@ const App = () => {
         >
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/accounts" element={<AccountsList />} />
-          <Route path="/journal-entries" element={<JournalEntriesList />} />
-          <Route path="/parties" element={<PartiesList />} />
-          <Route path="/invoices" element={<InvoicesList />} />
-          <Route path="/payments" element={<PaymentsList />} />
-          <Route path="/inventory" element={<InventoryList />} />
-          <Route path="/reports" element={<ReportsList />} />
-          <Route path="/audit-logs" element={<AuditLogsList />} />
-          <Route path="/currencies" element={<Currencies />} />
-          <Route path="/cost-centers" element={<CostCenters />} />
-          <Route path="/payslips" element={<Payslips />} />
-          <Route path="/employees" element={<Employees />} />
-          <Route path="/fixed-assets" element={<FixedAssets />} />
-          <Route path="/depreciation-schedules" element={<DepreciationSchedules />} />
+          <Route
+            path="/accounts"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <AccountsList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/journal-entries"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <JournalEntriesList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/parties"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <PartiesList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/invoices"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <InvoicesList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/payments"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <PaymentsList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <InventoryList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant', 'Viewer']}>
+                <ReportsList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/audit-logs"
+            element={
+              <PrivateRoute allowedRoles={['Admin']}>
+                <AuditLogsList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <PrivateRoute allowedRoles={['Admin']}>
+                <UsersList />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/currencies"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <Currencies />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/cost-centers"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <CostCenters />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/payslips"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <Payslips />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/employees"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <Employees />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/fixed-assets"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <FixedAssets />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/depreciation-schedules"
+            element={
+              <PrivateRoute allowedRoles={['Admin', 'Accountant']}>
+                <DepreciationSchedules />
+              </PrivateRoute>
+            }
+          />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>

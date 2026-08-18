@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getAccounts, createAccount, updateAccount, deleteAccount } from '../api/accounts'
 import { getErrorMessage } from '../utils/errorHandler'
 import Pagination from '../components/Pagination'
@@ -18,6 +19,8 @@ const initialFormState = {
 
 const AccountsList = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -130,9 +133,11 @@ const AccountsList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchAccounts(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addAccount')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addAccount')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -165,18 +170,22 @@ const AccountsList = () => {
                 <td>{acc.normal_balance}</td>
                 <td>{acc.parent ? accounts.find(a => a.id === acc.parent)?.code || acc.parent : '-'}</td>
                 <td>
-                  {acc.allow_posting ? <Badge bg="success">{t('yes')}</Badge> : <Badge bg="secondary">{t('no')}</Badge>}
+                  {acc.allow_posting ? <Badge bg="success" className="badge-status">{t('yes')}</Badge> : <Badge bg="secondary" className="badge-status">{t('no')}</Badge>}
                 </td>
                 <td>
-                  {acc.is_active ? <Badge bg="success">{t('active')}</Badge> : <Badge bg="danger">{t('inactive')}</Badge>}
+                  {acc.is_active ? <Badge bg="success" className="badge-status">{t('active')}</Badge> : <Badge bg="danger" className="badge-status">{t('inactive')}</Badge>}
                 </td>
                 <td>
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(acc)}>
-                    {t('edit')}
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(acc.id)}>
-                    {t('delete')}
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(acc)}>
+                        {t('edit')}
+                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(acc.id)}>
+                        {t('delete')}
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))

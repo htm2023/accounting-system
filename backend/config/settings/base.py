@@ -26,7 +26,7 @@ SECRET_KEY = 'django-insecure-oh(tgakt$n)uc)1_x3(j+)her@%-3b!&q=%w3@x&_l^)wy6c&#
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '.tunnelmole.net']
 
 
 # Application definition

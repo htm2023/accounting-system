@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getPayslips, createPayslip, postPayslip, getEmployees } from '../api/payroll'
 import { getFiscalPeriods } from '../api/fiscal'
 import { getErrorMessage } from '../utils/errorHandler'
@@ -16,6 +17,9 @@ const initialFormState = {
 
 const Payslips = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
+  const canPost = role === 'Admin'
   const [payslips, setPayslips] = useState([])
   const [employees, setEmployees] = useState([])
   const [fiscalPeriods, setFiscalPeriods] = useState([])
@@ -136,9 +140,11 @@ const Payslips = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('createPayslip')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('createPayslip')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -173,13 +179,13 @@ const Payslips = () => {
                 <td>{payslip.net_salary}</td>
                 <td>
                   {payslip.journal_entry ? (
-                    <Badge bg="success">{t('posted')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('posted')}</Badge>
                   ) : (
-                    <Badge bg="secondary">{t('draft')}</Badge>
+                    <Badge bg="secondary" className="badge-status">{t('draft')}</Badge>
                   )}
                 </td>
                 <td>
-                  {!payslip.journal_entry && (
+                  {!payslip.journal_entry && canPost && (
                     <Button
                       variant="outline-primary"
                       size="sm"

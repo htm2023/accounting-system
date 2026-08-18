@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getEmployees, createEmployee, updateEmployee, deleteEmployee } from '../api/payroll'
 import { getAccounts } from '../api/accounts'
 import { getErrorMessage } from '../utils/errorHandler'
@@ -18,6 +19,8 @@ const initialFormState = {
 
 const Employees = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [employees, setEmployees] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -133,9 +136,11 @@ const Employees = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addEmployee')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addEmployee')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -166,18 +171,22 @@ const Employees = () => {
                 <td>{employee.hire_date}</td>
                 <td>
                   {employee.status === 'Active' ? (
-                    <Badge bg="success">{t('employeeActive')}</Badge>
+                    <Badge bg="success" className="badge-status">{t('employeeActive')}</Badge>
                   ) : (
-                    <Badge bg="danger">{t('employeeTerminated')}</Badge>
+                    <Badge bg="danger" className="badge-status">{t('employeeTerminated')}</Badge>
                   )}
                 </td>
                 <td>
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(employee)}>
-                    {t('edit')}
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(employee.id)}>
-                    {t('delete')}
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(employee)}>
+                        {t('edit')}
+                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(employee.id)}>
+                        {t('delete')}
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))

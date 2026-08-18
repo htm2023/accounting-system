@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Table, Spinner, Alert, Button, Badge, Modal, Form, Row, Col } from 'react-bootstrap'
 import { useTranslation } from 'react-i18next'
+import { useSelector } from 'react-redux'
 import { getParties, createParty, updateParty, deleteParty } from '../api/parties'
 import { getAccounts } from '../api/accounts'
 import { getErrorMessage } from '../utils/errorHandler'
@@ -22,6 +23,8 @@ const initialFormState = {
 
 const PartiesList = () => {
   const { t } = useTranslation()
+  const role = useSelector((state) => state.auth.user?.role)
+  const canManage = role === 'Admin' || role === 'Accountant'
   const [parties, setParties] = useState([])
   const [accounts, setAccounts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -142,9 +145,11 @@ const PartiesList = () => {
           <Button variant="outline-primary" size="sm" onClick={() => fetchData(currentPage)} className="me-2">
             {t('update')}
           </Button>
-          <Button variant="primary" size="sm" onClick={handleOpenCreate}>
-            {t('addParty')}
-          </Button>
+          {canManage && (
+            <Button variant="primary" size="sm" onClick={handleOpenCreate}>
+              {t('addParty')}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -171,7 +176,7 @@ const PartiesList = () => {
             parties.map((party) => (
               <tr key={party.id}>
                 <td>
-                  <Badge bg={party.party_type === 'Customer' ? 'primary' : 'info'}>
+                  <Badge bg={party.party_type === 'Customer' ? 'primary' : 'info'} className="badge-status">
                     {party.party_type === 'Customer' ? t('customer') : party.party_type === 'Supplier' ? t('supplier') : t('both')}
                   </Badge>
                 </td>
@@ -181,12 +186,16 @@ const PartiesList = () => {
                 <td>{party.opening_balance}</td>
                 <td>{party.default_account ? accounts.find(a => a.id === party.default_account)?.code || party.default_account : '-'}</td>
                 <td>
-                  <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(party)}>
-                    {t('edit')}
-                  </Button>
-                  <Button variant="outline-danger" size="sm" onClick={() => handleDelete(party.id)}>
-                    {t('delete')}
-                  </Button>
+                  {canManage && (
+                    <>
+                      <Button variant="outline-secondary" size="sm" className="me-2" onClick={() => handleOpenEdit(party)}>
+                        {t('edit')}
+                      </Button>
+                      <Button variant="outline-danger" size="sm" onClick={() => handleDelete(party.id)}>
+                        {t('delete')}
+                      </Button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))
