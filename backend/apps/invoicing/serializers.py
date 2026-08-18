@@ -21,7 +21,8 @@ class InvoiceSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'invoice_type', 'invoice_number', 'fiscal_period', 'date',
             'due_date', 'party', 'currency', 'exchange_rate_used', 'subtotal',
-            'tax_amount', 'discount', 'total_amount', 'paid_amount', 'status',
+            'tax_amount', 'tax_account', 'discount', 'discount_account',
+            'total_amount', 'paid_amount', 'status',
             'journal_entry', 'items', 'created_by', 'created_at', 'updated_at'
         ]
         read_only_fields = [
@@ -29,11 +30,23 @@ class InvoiceSerializer(serializers.ModelSerializer):
             'status', 'journal_entry', 'created_by', 'created_at', 'updated_at'
         ]
 
+    @staticmethod
+    def _resolve_unit_cost(invoice_type, item_data):
+        # unit_cost قيمة محاسبية داخلية (تكلفة البضاعة)، وليست مُدخلاً حرًا من المستخدم:
+        # - عند البيع: تُشتق دائمًا من متوسط تكلفة المنتج الحالي (أساس تكلفة البضاعة المباعة).
+        # - عند الشراء: تساوي سعر الشراء المدفوع إن لم تُرسَل صراحة.
+        if invoice_type == Invoice.InvoiceType.SALE:
+            return item_data['product'].average_cost
+        if not item_data.get('unit_cost'):
+            return item_data['unit_price']
+        return item_data['unit_cost']
+
     def create(self, validated_data):
         items_data = validated_data.pop('items')
         with transaction.atomic():
             invoice = Invoice.objects.create(**validated_data)
             for item_data in items_data:
+                item_data['unit_cost'] = self._resolve_unit_cost(invoice.invoice_type, item_data)
                 InvoiceItem.objects.create(invoice=invoice, **item_data)
             invoice.update_totals()
         return invoice
@@ -49,6 +62,7 @@ class InvoiceSerializer(serializers.ModelSerializer):
             if items_data is not None:
                 instance.items.all().delete()
                 for item_data in items_data:
+                    item_data['unit_cost'] = self._resolve_unit_cost(instance.invoice_type, item_data)
                     InvoiceItem.objects.create(invoice=instance, **item_data)
             instance.update_totals()
         return instance

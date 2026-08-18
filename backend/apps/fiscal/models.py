@@ -15,10 +15,21 @@ class FiscalYear(TimeStampedModel):
         related_name='closed_fiscal_years'
     )
     closed_at = models.DateTimeField(null=True, blank=True)
+    retained_earnings_account = models.ForeignKey(
+        'chart_of_accounts.Account',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='retained_earnings_years'
+    )
 
     def clean(self):
         if self.start_date >= self.end_date:
             raise ValidationError('End date must be after start date.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -49,6 +60,10 @@ class FiscalPeriod(TimeStampedModel):
         ).exclude(pk=self.pk)
         if overlapping.exists():
             raise ValidationError('Period dates overlap with existing periods.')
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"{self.name} ({self.fiscal_year.name})"

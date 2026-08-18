@@ -40,7 +40,23 @@ class Invoice(TimeStampedModel):
     exchange_rate_used = models.DecimalField(max_digits=15, decimal_places=6, default=1)
     subtotal = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     tax_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    tax_account = models.ForeignKey(
+        'chart_of_accounts.Account',
+        on_delete=models.PROTECT,
+        related_name='invoices_tax',
+        null=True,
+        blank=True,
+        help_text='مطلوب فقط إذا كانت الفاتورة تحمل مبلغ ضريبة'
+    )
     discount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    discount_account = models.ForeignKey(
+        'chart_of_accounts.Account',
+        on_delete=models.PROTECT,
+        related_name='invoices_discount',
+        null=True,
+        blank=True,
+        help_text='مطلوب فقط إذا كانت الفاتورة تحمل مبلغ خصم'
+    )
     total_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     paid_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.DRAFT)
@@ -75,6 +91,19 @@ class Invoice(TimeStampedModel):
                 raise ValidationError('Invoice date must be within fiscal period.')
         if self.total_amount < 0:
             raise ValidationError('Total amount cannot be negative.')
+        if self.pk:
+            old = Invoice.objects.get(pk=self.pk)
+            if old.status in [self.Status.POSTED, self.Status.PARTIALLY_PAID, self.Status.PAID]:
+                allowed_fields = {'paid_amount', 'status', 'updated_at'}
+                changed_fields = []
+                for field in self._meta.fields:
+                    name = field.name
+                    if name in allowed_fields:
+                        continue
+                    if getattr(old, name) != getattr(self, name):
+                        changed_fields.append(name)
+                if changed_fields:
+                    raise ValidationError(f'الفاتورة المرحّلة لا يمكن تعديلها. الحقول المرفوضة: {", ".join(changed_fields)}')
 
     def save(self, *args, **kwargs):
         if not self.invoice_number:
@@ -107,6 +136,17 @@ class Invoice(TimeStampedModel):
             raise ValidationError('Only draft invoices can be posted.')
         if not self.items.exists():
             raise ValidationError('Invoice must have at least one item before posting.')
+        if self.tax_amount and not self.tax_account:
+            raise ValidationError('Tax account is required when tax amount is set.')
+        if self.discount and not self.discount_account:
+            raise ValidationError('Discount account is required when discount is set.')
+        # التحقق من وجود حساب إيراد لكل منتج قبل الترحيل
+        for item in self.items.all():
+            if self.invoice_type == self.InvoiceType.SALE:
+                if not item.product.revenue_account_id:
+                    raise ValidationError(
+                        f'المنتج {item.product.sku} لا يحتوي على حساب إيراد (revenue_account) — لا يمكن الترحيل.'
+                    )
         with transaction.atomic():
             self.update_totals()
             # إنشاء القيد المحاسبي
@@ -130,14 +170,15 @@ class Invoice(TimeStampedModel):
         return journal_entry
 
     def _get_journal_lines(self):
-        # ملاحظة: الضريبة والخصم على مستوى الفاتورة (tax_amount/discount) غير
-        # مُرحَّلين هنا بعد لعدم وجود حسابات "ضريبة مستحقة"/"خصومات" مُعرَّفة —
-        # القيد يتوازن على subtotal فقط حتى تُحسم هذه النقطة لاحقًا.
+        # الطرف (عميل/مورد) يُقيَّد بالمبلغ الفعلي المستحق total_amount
+        # (subtotal + tax_amount - discount)، وليس subtotal وحده، حتى يتوازن
+        # القيد فعليًا مقابل ما يدين/يُدان به الطرف. الضريبة والخصم على مستوى
+        # الفاتورة يُرحَّلان كسطرين منفصلين على حسابيهما المخصصين.
         lines = []
         if self.invoice_type == self.InvoiceType.SALE:
             lines.append({
                 'account': self.party.default_account,
-                'debit': self.subtotal,
+                'debit': self.total_amount,
                 'credit': 0,
                 'description': f'Sale invoice {self.invoice_number}'
             })
@@ -161,11 +202,25 @@ class Invoice(TimeStampedModel):
                     'credit': cost,
                     'description': f'Inventory out - {item.product.sku}'
                 })
+            if self.tax_amount:
+                lines.append({
+                    'account': self.tax_account,
+                    'debit': 0,
+                    'credit': self.tax_amount,
+                    'description': f'Output tax - {self.invoice_number}'
+                })
+            if self.discount:
+                lines.append({
+                    'account': self.discount_account,
+                    'debit': self.discount,
+                    'credit': 0,
+                    'description': f'Discount given - {self.invoice_number}'
+                })
         else:
             lines.append({
                 'account': self.party.default_account,
                 'debit': 0,
-                'credit': self.subtotal,
+                'credit': self.total_amount,
                 'description': f'Purchase invoice {self.invoice_number}'
             })
             for item in self.items.all():
@@ -174,6 +229,20 @@ class Invoice(TimeStampedModel):
                     'debit': item.total,
                     'credit': 0,
                     'description': f'Inventory in - {item.product.sku}'
+                })
+            if self.tax_amount:
+                lines.append({
+                    'account': self.tax_account,
+                    'debit': self.tax_amount,
+                    'credit': 0,
+                    'description': f'Input tax - {self.invoice_number}'
+                })
+            if self.discount:
+                lines.append({
+                    'account': self.discount_account,
+                    'debit': 0,
+                    'credit': self.discount,
+                    'description': f'Discount received - {self.invoice_number}'
                 })
         return lines
 

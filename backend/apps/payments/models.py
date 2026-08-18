@@ -59,6 +59,19 @@ class ReceiptPayment(TimeStampedModel):
                 raise ValidationError('Document date must be within fiscal period.')
         if self.amount <= 0:
             raise ValidationError('Amount must be positive.')
+        if self.pk:
+            old = ReceiptPayment.objects.get(pk=self.pk)
+            if old.journal_entry_id is not None:
+                allowed_fields = {'journal_entry', 'updated_at'}
+                changed_fields = []
+                for field in self._meta.fields:
+                    name = field.name
+                    if name in allowed_fields:
+                        continue
+                    if getattr(old, name) != getattr(self, name):
+                        changed_fields.append(name)
+                if changed_fields:
+                    raise ValidationError(f'السند المرحّل لا يمكن تعديله. الحقول المرفوضة: {", ".join(changed_fields)}')
 
     def save(self, *args, **kwargs):
         if not self.number:
@@ -93,6 +106,9 @@ class ReceiptPayment(TimeStampedModel):
             raise ValidationError('Invoice is already fully paid.')
         if amount <= 0:
             raise ValidationError('Allocation amount must be positive.')
+        # لا يمكن تخصيص دفعة لفاتورة غير مرحّلة
+        if invoice.status not in ['Posted', 'Partially Paid']:
+            raise ValidationError('لا يمكن تخصيص دفعة لفاتورة غير مرحّلة (Draft).')
         # التحقق من أن المبلغ لا يتجاوز المتبقي على الفاتورة
         remaining_invoice = invoice.total_amount - invoice.paid_amount
         if amount > remaining_invoice:

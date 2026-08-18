@@ -60,6 +60,7 @@ INSTALLED_APPS = [
     'apps.payroll',
     'apps.fixed_assets',
     'apps.reports',
+    'apps.audit_logs',
 ]
 
 MIDDLEWARE = [
@@ -169,8 +170,8 @@ SIMPLE_JWT = {
 }
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
 ]
 
 SPECTACULAR_SETTINGS = {

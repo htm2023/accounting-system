@@ -3,6 +3,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import Product, StockMovement
 from .serializers import ProductSerializer, StockMovementSerializer
 from apps.common.permissions import IsAccountant
+from apps.audit_logs.services import log_action
+from apps.audit_logs.models import AuditLog
 
 class ProductViewSet(viewsets.ModelViewSet):
     queryset = Product.objects.all()
@@ -14,6 +16,28 @@ class ProductViewSet(viewsets.ModelViewSet):
         else:
             self.permission_classes = [IsAuthenticated]
         return super().get_permissions()
+
+    def perform_update(self, serializer):
+        serializer.save()
+        log_action(
+            user=self.request.user,
+            action=AuditLog.Action.UPDATE,
+            model_name='Product',
+            object_id=serializer.instance.id,
+            description=f"Update product {serializer.instance.sku}",
+            request=self.request
+        )
+
+    def perform_destroy(self, instance):
+        log_action(
+            user=self.request.user,
+            action=AuditLog.Action.DELETE,
+            model_name='Product',
+            object_id=instance.id,
+            description=f"Delete product {instance.sku}",
+            request=self.request
+        )
+        instance.delete()
 
 class StockMovementViewSet(mixins.CreateModelMixin,
                             mixins.RetrieveModelMixin,

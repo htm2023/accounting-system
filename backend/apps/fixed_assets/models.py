@@ -154,13 +154,13 @@ class DepreciationSchedule(TimeStampedModel):
         from apps.journal_entries.services import create_journal_entry
         lines = [
             {
-                'account': self.asset.expense_account,
+                'account': self.asset.expense_account,   # مدين: مصروف الإهلاك
                 'debit': self.depreciation_amount,
                 'credit': 0,
-                'description': f'Depreciation for {self.asset.name}'
+                'description': f'Depreciation expense for {self.asset.name}'
             },
             {
-                'account': self.asset.depreciation_account,
+                'account': self.asset.depreciation_account,  # دائن: مجمع الإهلاك
                 'debit': 0,
                 'credit': self.depreciation_amount,
                 'description': f'Accumulated depreciation for {self.asset.name}'

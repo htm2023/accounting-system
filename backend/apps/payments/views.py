@@ -7,6 +7,8 @@ from rest_framework.permissions import IsAuthenticated
 from .models import ReceiptPayment, PaymentAllocation
 from .serializers import ReceiptPaymentSerializer, PaymentAllocationSerializer
 from apps.common.permissions import IsAccountant, IsAdmin
+from apps.audit_logs.services import log_action
+from apps.audit_logs.models import AuditLog
 
 class ReceiptPaymentViewSet(viewsets.ModelViewSet):
     queryset = ReceiptPayment.objects.prefetch_related('payment_allocations')
@@ -43,6 +45,14 @@ class ReceiptPaymentViewSet(viewsets.ModelViewSet):
             journal_entry = rp.post(user=request.user)
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        log_action(
+            user=request.user,
+            action=AuditLog.Action.POST,
+            model_name='ReceiptPayment',
+            object_id=rp.id,
+            description=f'Post {rp.document_type} {rp.number}',
+            request=request
+        )
         return Response({
             'message': 'Document posted successfully.',
             'number': rp.number,

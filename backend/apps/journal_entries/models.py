@@ -12,6 +12,7 @@ class JournalEntry(TimeStampedModel):
         PAYROLL = 'Payroll', 'Payroll'
         ASSET = 'Asset', 'Asset'
         REVERSAL = 'Reversal', 'Reversal'
+        CLOSING = 'Closing', 'Closing'
 
     entry_number = models.CharField(max_length=50, unique=True, editable=False)
     fiscal_period = models.ForeignKey(
@@ -67,6 +68,19 @@ class JournalEntry(TimeStampedModel):
         if self.fiscal_period:
             if self.date < self.fiscal_period.start_date or self.date > self.fiscal_period.end_date:
                 raise ValidationError('Entry date must be within the fiscal period.')
+        if self.pk:
+            old = JournalEntry.objects.get(pk=self.pk)
+            if old.is_posted and self.is_posted:
+                allowed_fields = {'is_posted', 'approved_by', 'updated_at'}
+                changed_fields = []
+                for field in self._meta.fields:
+                    name = field.name
+                    if name in allowed_fields:
+                        continue
+                    if getattr(old, name) != getattr(self, name):
+                        changed_fields.append(name)
+                if changed_fields:
+                    raise ValidationError(f'القيد المرحّل لا يمكن تعديله. الحقول المرفوضة: {", ".join(changed_fields)}')
 
     def save(self, *args, **kwargs):
         # توليد رقم القيد تلقائيًا إذا لم يُحدد

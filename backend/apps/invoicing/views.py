@@ -5,7 +5,10 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Invoice
 from .serializers import InvoiceSerializer
+from .pdf import invoice_to_pdf
 from apps.common.permissions import IsAccountant, IsAdmin
+from apps.audit_logs.services import log_action
+from apps.audit_logs.models import AuditLog
 
 class InvoiceViewSet(viewsets.ModelViewSet):
     queryset = Invoice.objects.prefetch_related('items')
@@ -39,8 +42,21 @@ class InvoiceViewSet(viewsets.ModelViewSet):
             journal_entry = invoice.post(user=request.user)
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        log_action(
+            user=request.user,
+            action=AuditLog.Action.POST,
+            model_name='Invoice',
+            object_id=invoice.id,
+            description=f'Post invoice {invoice.invoice_number}',
+            request=request
+        )
         return Response({
             'message': 'Invoice posted successfully.',
             'invoice_number': invoice.invoice_number,
             'journal_entry': journal_entry.entry_number
         })
+
+    @action(detail=True, methods=['get'], permission_classes=[IsAuthenticated])
+    def pdf(self, request, pk=None):
+        invoice = self.get_object()
+        return invoice_to_pdf(invoice)
