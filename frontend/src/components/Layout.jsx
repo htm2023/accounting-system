@@ -143,6 +143,9 @@ const Layout = () => {
                 {t('users')}
               </NavLink>
             )}
+            <NavLink to="/settings" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              {t('settings')}
+            </NavLink>
           </Nav>
         </div>
 

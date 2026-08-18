@@ -19,6 +19,7 @@ import Employees from './pages/Employees'
 import FixedAssets from './pages/FixedAssets'
 import DepreciationSchedules from './pages/DepreciationSchedules'
 import UsersList from './pages/UsersList'
+import Settings from './pages/Settings'
 
 const App = () => {
   return (
@@ -154,6 +155,7 @@ const App = () => {
               </PrivateRoute>
             }
           />
+          <Route path="/settings" element={<Settings />} />
         </Route>
         <Route path="*" element={<Navigate to="/dashboard" replace />} />
       </Routes>
