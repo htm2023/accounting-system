@@ -174,6 +174,8 @@ CORS_ALLOWED_ORIGINS = [
     "http://127.0.0.1:5173",
 ]
 
+SERVE_FRONTEND = False
+
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Accounting System API',
     'DESCRIPTION': 'Professional accounting system API',

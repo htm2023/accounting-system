@@ -1,5 +1,7 @@
+from django.conf import settings
 from django.contrib import admin
-from django.urls import path, include
+from django.urls import path, re_path, include
+from django.views.generic import TemplateView
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -22,3 +24,10 @@ urlpatterns = [
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
 ]
+
+# عند التشغيل من عملية واحدة (مثل Replit) تخدم Django واجهة React المبنية
+# مباشرة؛ على Render الواجهة خدمة static منفصلة فلا يُستخدم هذا المسار إطلاقًا.
+if getattr(settings, 'SERVE_FRONTEND', False):
+    urlpatterns += [
+        re_path(r'^(?!api/|admin/|static/).*$', TemplateView.as_view(template_name='index.html')),
+    ]

@@ -1,0 +1,9 @@
+modules = ["python-3.11", "nodejs-20"]
+run = "bash replit_start.sh"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 8000
+externalPort = 80
