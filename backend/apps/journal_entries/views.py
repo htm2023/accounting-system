@@ -60,7 +60,7 @@ class JournalEntryViewSet(viewsets.ModelViewSet):
     def reverse(self, request, pk=None):
         entry = self.get_object()
         try:
-            reversal = entry.create_reversal(user=request.user)
+            reversal = entry.create_reversal(user=request.user, date=request.data.get('date'))
         except ValidationError as e:
             return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
         log_action(

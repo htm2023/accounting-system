@@ -14,7 +14,7 @@ const STATS = [
   { key: 'accounts', icon: 'bi-diagram-3', fetcher: getAccounts, label: 'accounts' },
   { key: 'journalEntries', icon: 'bi-journal-text', fetcher: getJournalEntries, label: 'journalEntries' },
   { key: 'invoices', icon: 'bi-receipt', fetcher: getInvoices, label: 'invoices' },
-  { key: 'payments', icon: 'bi-cash-coin', fetcher: getReceiptPayments, label: 'payments' },
+  { key: 'payments', icon: 'bi-cash-coin', fetcher: getReceiptPayments, label: 'payments', chartLabel: 'paymentsShort' },
   { key: 'parties', icon: 'bi-people', fetcher: getParties, label: 'parties' },
   { key: 'products', icon: 'bi-box-seam', fetcher: getProducts, label: 'products' },
 ]
@@ -43,7 +43,7 @@ const Dashboard = () => {
 
   const chartData = (stats || [])
     .filter((s) => s.count !== null)
-    .map((s) => ({ name: t(s.label), [t('total')]: s.count }))
+    .map((s) => ({ name: t(s.chartLabel || s.label), [t('total')]: s.count }))
 
   return (
     <Container fluid className="mt-2">

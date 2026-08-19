@@ -84,13 +84,13 @@ class Invoice(TimeStampedModel):
         return f"{self.invoice_number} - {self.party.name_ar}"
 
     def clean(self):
-        if self.fiscal_period and self.fiscal_period.is_closed:
-            raise ValidationError('Cannot create invoice in a closed fiscal period.')
         if self.date and self.fiscal_period:
             if self.date < self.fiscal_period.start_date or self.date > self.fiscal_period.end_date:
                 raise ValidationError('Invoice date must be within fiscal period.')
         if self.total_amount < 0:
             raise ValidationError('Total amount cannot be negative.')
+
+        only_lifecycle_fields_changed = False
         if self.pk:
             old = Invoice.objects.get(pk=self.pk)
             if old.status in [self.Status.POSTED, self.Status.PARTIALLY_PAID, self.Status.PAID]:
@@ -104,6 +104,14 @@ class Invoice(TimeStampedModel):
                         changed_fields.append(name)
                 if changed_fields:
                     raise ValidationError(f'الفاتورة المرحّلة لا يمكن تعديلها. الحقول المرفوضة: {", ".join(changed_fields)}')
+                only_lifecycle_fields_changed = True
+
+        # فترة مقفولة تمنع إنشاء فاتورة جديدة أو تعديل محتواها، لكنها لا تمنع
+        # تحديثات دورة الحياة اللاحقة (تحصيل/سداد عبر allocate_to_invoice) على
+        # فاتورة مرحّلة بالفعل تخص فترة أُقفلت بعد ترحيلها — تلك التحديثات
+        # محكومة أصلًا بقائمة الحقول المسموحة أعلاه (paid_amount/status).
+        if self.fiscal_period and self.fiscal_period.is_closed and not only_lifecycle_fields_changed:
+            raise ValidationError('Cannot create invoice in a closed fiscal period.')
 
     def save(self, *args, **kwargs):
         if not self.invoice_number:
@@ -118,6 +126,10 @@ class Invoice(TimeStampedModel):
                 doc_type,
                 fiscal_year=self.fiscal_period.fiscal_year if self.fiscal_period else None
             )
+        # صمّام أمان: عملة أساسية أو عدم تحديد عملة يعني دائمًا سعر صرف = 1،
+        # بصرف النظر عمّا أُرسل (الحساب الفعلي لسعر الصرف يتم في الـ serializer).
+        if not self.currency_id or self.currency.is_base_currency:
+            self.exchange_rate_used = Decimal('1')
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -174,11 +186,22 @@ class Invoice(TimeStampedModel):
         # (subtotal + tax_amount - discount)، وليس subtotal وحده، حتى يتوازن
         # القيد فعليًا مقابل ما يدين/يُدان به الطرف. الضريبة والخصم على مستوى
         # الفاتورة يُرحَّلان كسطرين منفصلين على حسابيهما المخصصين.
+        #
+        # القيد المحاسبي دائمًا بالعملة الأساسية (دفتر أستاذ بعملة واحدة).
+        # لذلك تُحوَّل كل المبالغ ذات الصلة بعملة الفاتورة (طرف/إيراد/ضريبة/خصم)
+        # بضرب سعر الصرف. أما التكلفة (COGS/المخزون) فتبقى كما هي دومًا لأنها
+        # مشتقة من average_cost أو من unit_cost المُحوَّل مسبقًا في الـ serializer،
+        # وكلاهما بالعملة الأساسية أصلًا.
+        rate = self.exchange_rate_used or Decimal('1')
+
+        def conv(amount):
+            return Decimal(amount * rate).quantize(Decimal('0.01'))
+
         lines = []
         if self.invoice_type == self.InvoiceType.SALE:
             lines.append({
                 'account': self.party.default_account,
-                'debit': self.total_amount,
+                'debit': conv(self.total_amount),
                 'credit': 0,
                 'description': f'Sale invoice {self.invoice_number}'
             })
@@ -186,7 +209,7 @@ class Invoice(TimeStampedModel):
                 lines.append({
                     'account': item.product.revenue_account,
                     'debit': 0,
-                    'credit': item.total,
+                    'credit': conv(item.total),
                     'description': f'Revenue - {item.product.sku}'
                 })
                 cost = Decimal(item.quantity * item.unit_cost).quantize(Decimal('0.01'))
@@ -206,13 +229,13 @@ class Invoice(TimeStampedModel):
                 lines.append({
                     'account': self.tax_account,
                     'debit': 0,
-                    'credit': self.tax_amount,
+                    'credit': conv(self.tax_amount),
                     'description': f'Output tax - {self.invoice_number}'
                 })
             if self.discount:
                 lines.append({
                     'account': self.discount_account,
-                    'debit': self.discount,
+                    'debit': conv(self.discount),
                     'credit': 0,
                     'description': f'Discount given - {self.invoice_number}'
                 })
@@ -220,20 +243,20 @@ class Invoice(TimeStampedModel):
             lines.append({
                 'account': self.party.default_account,
                 'debit': 0,
-                'credit': self.total_amount,
+                'credit': conv(self.total_amount),
                 'description': f'Purchase invoice {self.invoice_number}'
             })
             for item in self.items.all():
                 lines.append({
                     'account': item.product.inventory_account,
-                    'debit': item.total,
+                    'debit': conv(item.total),
                     'credit': 0,
                     'description': f'Inventory in - {item.product.sku}'
                 })
             if self.tax_amount:
                 lines.append({
                     'account': self.tax_account,
-                    'debit': self.tax_amount,
+                    'debit': conv(self.tax_amount),
                     'credit': 0,
                     'description': f'Input tax - {self.invoice_number}'
                 })
@@ -241,7 +264,7 @@ class Invoice(TimeStampedModel):
                 lines.append({
                     'account': self.discount_account,
                     'debit': 0,
-                    'credit': self.discount,
+                    'credit': conv(self.discount),
                     'description': f'Discount received - {self.invoice_number}'
                 })
         return lines

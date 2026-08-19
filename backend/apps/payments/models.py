@@ -1,7 +1,17 @@
+from decimal import Decimal
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from django.db.models import Sum
 from apps.common.models import TimeStampedModel
+
+
+def _normalized_currency_id(currency):
+    """يُطبِّع العملة الأساسية (أو عدم تحديد عملة) دائمًا إلى None، حتى تُقارَن
+    فاتورة بلا عملة محددة مع فاتورة بعملة أساسية صريحة على أنهما متكافئتان."""
+    if currency is None or currency.is_base_currency:
+        return None
+    return currency.id
+
 
 class ReceiptPayment(TimeStampedModel):
     class DocumentType(models.TextChoices):
@@ -27,6 +37,14 @@ class ReceiptPayment(TimeStampedModel):
         on_delete=models.PROTECT,
         related_name='receipts_payments'
     )
+    currency = models.ForeignKey(
+        'currencies.Currency',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='receipts_payments'
+    )
+    exchange_rate_used = models.DecimalField(max_digits=15, decimal_places=6, default=1)
     description = models.TextField(blank=True, null=True)
     journal_entry = models.ForeignKey(
         'journal_entries.JournalEntry',
@@ -86,6 +104,10 @@ class ReceiptPayment(TimeStampedModel):
                 doc_type,
                 fiscal_year=self.fiscal_period.fiscal_year if self.fiscal_period else None
             )
+        # صمّام أمان: عملة أساسية أو عدم تحديد عملة يعني دائمًا سعر صرف = 1،
+        # بصرف النظر عمّا أُرسل (الحساب الفعلي لسعر الصرف يتم في الـ serializer).
+        if not self.currency_id or self.currency.is_base_currency:
+            self.exchange_rate_used = Decimal('1')
         self.full_clean()
         super().save(*args, **kwargs)
 
@@ -100,6 +122,13 @@ class ReceiptPayment(TimeStampedModel):
     def allocate_to_invoice(self, invoice, amount):
         if invoice.party_id != self.party_id:
             raise ValidationError('Invoice party does not match the receipt/payment party.')
+        # amount هنا بعملة السند نفسها، وتُقارَن مباشرة (بلا تحويل) بمبلغ
+        # الفاتورة الذي هو أيضًا بعملة الفاتورة نفسها — فيجب أن تتطابق
+        # العملتان (أو تكونا كلتاهما العملة الأساسية) حتى تُقارَن كأرقام
+        # بنفس الوحدة فعليًا. سداد فاتورة بعملة مختلفة عن عملة السند غير
+        # مدعوم (يتطلب محاسبة فروق أسعار صرف منفصلة، خارج نطاق هذا النظام).
+        if _normalized_currency_id(self.currency) != _normalized_currency_id(invoice.currency):
+            raise ValidationError('عملة السند يجب أن تطابق عملة الفاتورة المخصَّص لها.')
         if self.unallocated_amount < amount:
             raise ValidationError('Allocation amount exceeds unallocated amount.')
         if invoice.status == 'Paid':
@@ -134,6 +163,10 @@ class ReceiptPayment(TimeStampedModel):
             raise ValidationError('Cannot post with unallocated amount. Allocate full amount first.')
         # إنشاء القيد المحاسبي
         from apps.journal_entries.services import create_journal_entry
+        # القيد دائمًا بالعملة الأساسية؛ amount بعملة السند نفسها فتُحوَّل
+        # بضرب سعر الصرف (rate=1 دائمًا للعملة الأساسية أو عند عدم تحديدها).
+        rate = self.exchange_rate_used or Decimal('1')
+        converted_amount = Decimal(self.amount * rate).quantize(Decimal('0.01'))
         lines = []
         if self.document_type == self.DocumentType.RECEIPT:
             # مدين: حساب البنك/الخزينة، دائن: حساب العميل
@@ -141,28 +174,28 @@ class ReceiptPayment(TimeStampedModel):
             # (self.party)، لذا حساب الطرف واحد دائمًا بغض النظر عن عدد الفواتير.
             lines.append({
                 'account': self.account,
-                'debit': self.amount,
+                'debit': converted_amount,
                 'credit': 0,
                 'description': f'Receipt {self.number} from {self.party.name_ar}'
             })
             lines.append({
                 'account': self.party.default_account,
                 'debit': 0,
-                'credit': self.amount,
+                'credit': converted_amount,
                 'description': f'Receipt {self.number} allocation'
             })
         else:  # Payment
             # مدين: حساب المورد، دائن: حساب البنك/الخزينة
             lines.append({
                 'account': self.party.default_account,
-                'debit': self.amount,
+                'debit': converted_amount,
                 'credit': 0,
                 'description': f'Payment {self.number} to {self.party.name_ar}'
             })
             lines.append({
                 'account': self.account,
                 'debit': 0,
-                'credit': self.amount,
+                'credit': converted_amount,
                 'description': f'Payment {self.number}'
             })
         with transaction.atomic():

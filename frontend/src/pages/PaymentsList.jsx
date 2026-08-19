@@ -12,6 +12,7 @@ import { getParties } from '../api/parties'
 import { getFiscalPeriods } from '../api/fiscal'
 import { getAccounts } from '../api/accounts'
 import { getInvoices } from '../api/invoices'
+import { getCurrencies, getExchangeRates } from '../api/currencies'
 import { getErrorMessage } from '../utils/errorHandler'
 import Pagination from '../components/Pagination'
 
@@ -22,6 +23,8 @@ const initialFormState = {
   party: '',
   amount: '',
   account: '',
+  currency: '',
+  exchange_rate_used: '1',
   description: '',
 }
 
@@ -35,6 +38,8 @@ const PaymentsList = () => {
   const [fiscalPeriods, setFiscalPeriods] = useState([])
   const [accounts, setAccounts] = useState([])
   const [invoices, setInvoices] = useState([])
+  const [currencies, setCurrencies] = useState([])
+  const [exchangeRates, setExchangeRates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -53,12 +58,14 @@ const PaymentsList = () => {
     setLoading(true)
     setError('')
     try {
-      const [paymentsData, partiesData, periodsData, accountsData, invoicesData] = await Promise.all([
+      const [paymentsData, partiesData, periodsData, accountsData, invoicesData, currenciesData, ratesData] = await Promise.all([
         getReceiptPayments(page),
         getParties(),
         getFiscalPeriods(),
         getAccounts(),
         getInvoices(),
+        getCurrencies(1, 200),
+        getExchangeRates(1, 500),
       ])
       setPayments(paymentsData.results)
       setCurrentPage(paymentsData.current_page || 1)
@@ -68,6 +75,8 @@ const PaymentsList = () => {
       setFiscalPeriods(periodsData.results || periodsData)
       setAccounts(accountsData.results || accountsData)
       setInvoices(invoicesData.results || invoicesData)
+      setCurrencies(currenciesData.results || currenciesData)
+      setExchangeRates(ratesData.results || ratesData)
     } catch (err) {
       setError(t('failedLoadPayments'))
     } finally {
@@ -98,8 +107,51 @@ const PaymentsList = () => {
     return party ? (party.name_ar || party.name_en) : partyId
   }
 
+  const getCurrencyCode = (currencyId) => {
+    const currency = currencies.find((c) => c.id === currencyId)
+    return currency ? currency.code : ''
+  }
+
+  const findLatestRate = (currencyId, date) => {
+    const candidates = exchangeRates
+      .filter((r) => r.currency === currencyId && (!date || r.date <= date))
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+    return candidates.length > 0 ? candidates[0].rate : null
+  }
+
+  const handleCurrencyChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => {
+      const currency = currencies.find((c) => c.id === Number(value))
+      if (!value || (currency && currency.is_base_currency)) {
+        return { ...prev, currency: value, exchange_rate_used: '1' }
+      }
+      const rate = findLatestRate(Number(value), prev.date)
+      return { ...prev, currency: value, exchange_rate_used: rate !== null ? String(rate) : '' }
+    })
+  }
+
+  const handleDateChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => {
+      const currency = currencies.find((c) => c.id === Number(prev.currency))
+      if (!prev.currency || (currency && currency.is_base_currency)) {
+        return { ...prev, date: value }
+      }
+      const rate = findLatestRate(Number(prev.currency), value)
+      return { ...prev, date: value, exchange_rate_used: rate !== null ? String(rate) : prev.exchange_rate_used }
+    })
+  }
+
+  const selectedCurrency = currencies.find((c) => c.id === Number(formData.currency))
+  const isForeignCurrency = formData.currency && selectedCurrency && !selectedCurrency.is_base_currency
+
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isForeignCurrency && !formData.exchange_rate_used) {
+      setError(t('exchangeRateRequired'))
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -110,6 +162,8 @@ const PaymentsList = () => {
         party: Number(formData.party),
         amount: parseFloat(formData.amount),
         account: Number(formData.account),
+        currency: formData.currency ? Number(formData.currency) : null,
+        exchange_rate_used: formData.exchange_rate_used ? parseFloat(formData.exchange_rate_used) : 1,
         description: formData.description || '',
       }
       await createReceiptPayment(payload)
@@ -187,6 +241,7 @@ const PaymentsList = () => {
             <th>{t('paymentType')}</th>
             <th>{t('party')}</th>
             <th>{t('paymentDate')}</th>
+            <th>{t('currency')}</th>
             <th>{t('amount')}</th>
             <th>{t('allocatedAmount')}</th>
             <th>{t('unallocatedAmount')}</th>
@@ -197,7 +252,7 @@ const PaymentsList = () => {
         <tbody>
           {payments.length === 0 ? (
             <tr>
-              <td colSpan="9" className="text-center">{t('noPayments')}</td>
+              <td colSpan="10" className="text-center">{t('noPayments')}</td>
             </tr>
           ) : (
             payments.map((pay) => (
@@ -210,6 +265,7 @@ const PaymentsList = () => {
                 </td>
                 <td>{getPartyName(pay.party)}</td>
                 <td>{pay.date}</td>
+                <td>{pay.currency ? getCurrencyCode(pay.currency) : t('baseCurrencyDefault')}</td>
                 <td>{pay.amount}</td>
                 <td>{pay.total_allocated}</td>
                 <td>{pay.unallocated_amount}</td>
@@ -287,7 +343,7 @@ const PaymentsList = () => {
               <Col md={6}>
                 <Form.Group className="mb-3">
                   <Form.Label>{t('paymentDate')} *</Form.Label>
-                  <Form.Control type="date" name="date" value={formData.date} onChange={handleFormChange} required />
+                  <Form.Control type="date" name="date" value={formData.date} onChange={handleDateChange} required />
                 </Form.Group>
               </Col>
               <Col md={6}>
@@ -323,6 +379,37 @@ const PaymentsList = () => {
                 </Form.Group>
               </Col>
             </Row>
+            <Row>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>{t('currency')}</Form.Label>
+                  <Form.Select name="currency" value={formData.currency} onChange={handleCurrencyChange}>
+                    <option value="">{t('baseCurrencyDefault')}</option>
+                    {currencies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={6}>
+                <Form.Group className="mb-3">
+                  <Form.Label>{t('exchangeRate')} {isForeignCurrency && '*'}</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.000001"
+                    name="exchange_rate_used"
+                    value={formData.exchange_rate_used}
+                    onChange={handleFormChange}
+                    disabled={!isForeignCurrency}
+                    required={isForeignCurrency}
+                    min="0"
+                  />
+                  {isForeignCurrency && !formData.exchange_rate_used && (
+                    <Form.Text className="text-danger">{t('noExchangeRateFound')}</Form.Text>
+                  )}
+                </Form.Group>
+              </Col>
+            </Row>
             <Form.Group className="mb-3">
               <Form.Label>{t('description')}</Form.Label>
               <Form.Control type="text" name="description" value={formData.description} onChange={handleFormChange} />
@@ -350,6 +437,9 @@ const PaymentsList = () => {
               <option value="">{t('selectInvoice')}</option>
               {invoices
                 .filter((inv) => inv.status === 'Posted' || inv.status === 'Partially Paid')
+                // عملة السند يجب أن تطابق عملة الفاتورة تمامًا (وإلا رفض الخادم
+                // التخصيص) — تُفلتَر القائمة هنا لتفادي محاولة غير صالحة.
+                .filter((inv) => (inv.currency || null) === (currentPayment?.currency || null))
                 .map((inv) => (
                   <option key={inv.id} value={inv.id}>
                     {inv.invoice_number} - {getPartyName(inv.party)} ({t('remaining')}: {inv.total_amount - inv.paid_amount})

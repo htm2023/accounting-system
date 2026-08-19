@@ -8,6 +8,11 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 import arabic_reshaper
 from bidi.algorithm import get_display
+from apps.currencies.models import Currency
+
+def _base_currency_code():
+    base = Currency.objects.filter(is_base_currency=True).first()
+    return base.code if base else ''
 
 # تسجيل الخط العربي مرة واحدة
 def register_arabic_font():
@@ -45,14 +50,17 @@ def invoice_to_pdf(invoice):
     elements.append(Spacer(1, 5*mm))
 
     # بيانات أساسية
+    currency_code = invoice.currency.code if invoice.currency else _base_currency_code()
     data = [
         [Paragraph(ar('رقم الفاتورة'), left_style), Paragraph(invoice.invoice_number, left_style)],
         [Paragraph(ar('التاريخ'), left_style), Paragraph(str(invoice.date), left_style)],
         [Paragraph(ar('تاريخ الاستحقاق'), left_style), Paragraph(str(invoice.due_date) if invoice.due_date else '-', left_style)],
         [Paragraph(ar('الطرف'), left_style), Paragraph(ar(invoice.party.name_ar or invoice.party.name_en), left_style)],
         [Paragraph(ar('الحالة'), left_style), Paragraph(invoice.status, left_style)],
-        [Paragraph(ar('العملة'), left_style), Paragraph(invoice.currency.code if invoice.currency else 'SAR', left_style)],
+        [Paragraph(ar('العملة'), left_style), Paragraph(currency_code, left_style)],
     ]
+    if invoice.currency and not invoice.currency.is_base_currency:
+        data.append([Paragraph(ar('سعر الصرف'), left_style), Paragraph(str(invoice.exchange_rate_used), left_style)])
     info_table = Table(data, colWidths=[50*mm, 80*mm])
     info_table.setStyle(TableStyle([
         ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),

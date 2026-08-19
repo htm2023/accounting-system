@@ -7,6 +7,7 @@ import { getParties } from '../api/parties'
 import { getFiscalPeriods } from '../api/fiscal'
 import { getProducts } from '../api/inventory'
 import { getAccounts } from '../api/accounts'
+import { getCurrencies, getExchangeRates } from '../api/currencies'
 import { getErrorMessage } from '../utils/errorHandler'
 import Pagination from '../components/Pagination'
 
@@ -16,7 +17,7 @@ const initialFormState = {
   date: new Date().toISOString().slice(0, 10),
   due_date: '',
   party: '',
-  currency: null,
+  currency: '',
   exchange_rate_used: '1',
   tax_amount: '0',
   tax_account: '',
@@ -37,6 +38,8 @@ const InvoicesList = () => {
   const [fiscalPeriods, setFiscalPeriods] = useState([])
   const [products, setProducts] = useState([])
   const [accounts, setAccounts] = useState([])
+  const [currencies, setCurrencies] = useState([])
+  const [exchangeRates, setExchangeRates] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showModal, setShowModal] = useState(false)
@@ -51,12 +54,14 @@ const InvoicesList = () => {
     setLoading(true)
     setError('')
     try {
-      const [invoicesData, partiesData, periodsData, productsData, accountsData] = await Promise.all([
+      const [invoicesData, partiesData, periodsData, productsData, accountsData, currenciesData, ratesData] = await Promise.all([
         getInvoices(page),
         getParties(),
         getFiscalPeriods(),
         getProducts(),
         getAccounts(),
+        getCurrencies(1, 200),
+        getExchangeRates(1, 500),
       ])
       setInvoices(invoicesData.results)
       setCurrentPage(invoicesData.current_page || 1)
@@ -66,6 +71,8 @@ const InvoicesList = () => {
       setFiscalPeriods(periodsData.results || periodsData)
       setProducts(productsData.results || productsData)
       setAccounts(accountsData.results || accountsData)
+      setCurrencies(currenciesData.results || currenciesData)
+      setExchangeRates(ratesData.results || ratesData)
     } catch (err) {
       setError(t('failedLoadInvoices'))
     } finally {
@@ -90,6 +97,46 @@ const InvoicesList = () => {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
+
+  const getCurrencyCode = (currencyId) => {
+    const currency = currencies.find((c) => c.id === currencyId)
+    return currency ? currency.code : ''
+  }
+
+  // آخر سعر صرف معروف لعملة معيّنة بتاريخ يساوي أو يسبق تاريخ الفاتورة
+  const findLatestRate = (currencyId, date) => {
+    const candidates = exchangeRates
+      .filter((r) => r.currency === currencyId && (!date || r.date <= date))
+      .sort((a, b) => (a.date < b.date ? 1 : -1))
+    return candidates.length > 0 ? candidates[0].rate : null
+  }
+
+  const handleCurrencyChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => {
+      const currency = currencies.find((c) => c.id === Number(value))
+      if (!value || (currency && currency.is_base_currency)) {
+        return { ...prev, currency: value, exchange_rate_used: '1' }
+      }
+      const rate = findLatestRate(Number(value), prev.date)
+      return { ...prev, currency: value, exchange_rate_used: rate !== null ? String(rate) : '' }
+    })
+  }
+
+  const handleDateChange = (e) => {
+    const value = e.target.value
+    setFormData((prev) => {
+      const currency = currencies.find((c) => c.id === Number(prev.currency))
+      if (!prev.currency || (currency && currency.is_base_currency)) {
+        return { ...prev, date: value }
+      }
+      const rate = findLatestRate(Number(prev.currency), value)
+      return { ...prev, date: value, exchange_rate_used: rate !== null ? String(rate) : prev.exchange_rate_used }
+    })
+  }
+
+  const selectedCurrency = currencies.find((c) => c.id === Number(formData.currency))
+  const isForeignCurrency = formData.currency && selectedCurrency && !selectedCurrency.is_base_currency
 
   const getPartyName = (partyId) => {
     const party = parties.find((p) => p.id === partyId)
@@ -120,6 +167,10 @@ const InvoicesList = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    if (isForeignCurrency && !formData.exchange_rate_used) {
+      setError(t('exchangeRateRequired'))
+      return
+    }
     setSubmitting(true)
     setError('')
     try {
@@ -130,7 +181,7 @@ const InvoicesList = () => {
         due_date: formData.due_date || null,
         party: Number(formData.party),
         currency: formData.currency ? Number(formData.currency) : null,
-        exchange_rate_used: parseFloat(formData.exchange_rate_used) || 1,
+        exchange_rate_used: formData.exchange_rate_used ? parseFloat(formData.exchange_rate_used) : 1,
         tax_amount: parseFloat(formData.tax_amount) || 0,
         tax_account: formData.tax_account ? Number(formData.tax_account) : null,
         discount: parseFloat(formData.discount) || 0,
@@ -223,6 +274,7 @@ const InvoicesList = () => {
             <th>{t('invoiceType')}</th>
             <th>{t('party')}</th>
             <th>{t('invoiceDate')}</th>
+            <th>{t('currency')}</th>
             <th>{t('totalAmount')}</th>
             <th>{t('paidAmount')}</th>
             <th>{t('invoiceStatus')}</th>
@@ -232,7 +284,7 @@ const InvoicesList = () => {
         <tbody>
           {invoices.length === 0 ? (
             <tr>
-              <td colSpan="8" className="text-center">{t('noInvoices')}</td>
+              <td colSpan="9" className="text-center">{t('noInvoices')}</td>
             </tr>
           ) : (
             invoices.map((inv) => (
@@ -245,6 +297,7 @@ const InvoicesList = () => {
                 </td>
                 <td>{getPartyName(inv.party)}</td>
                 <td>{inv.date}</td>
+                <td>{inv.currency ? getCurrencyCode(inv.currency) : t('baseCurrencyDefault')}</td>
                 <td>{inv.total_amount}</td>
                 <td>{inv.paid_amount}</td>
                 <td>
@@ -311,7 +364,7 @@ const InvoicesList = () => {
               <Col md={4}>
                 <Form.Group className="mb-3">
                   <Form.Label>{t('invoiceDate')} *</Form.Label>
-                  <Form.Control type="date" name="date" value={formData.date} onChange={handleFormChange} required />
+                  <Form.Control type="date" name="date" value={formData.date} onChange={handleDateChange} required />
                 </Form.Group>
               </Col>
             </Row>
@@ -331,6 +384,37 @@ const InvoicesList = () => {
                 <Form.Group className="mb-3">
                   <Form.Label>{t('dueDate')}</Form.Label>
                   <Form.Control type="date" name="due_date" value={formData.due_date} onChange={handleFormChange} />
+                </Form.Group>
+              </Col>
+            </Row>
+            <Row>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>{t('currency')}</Form.Label>
+                  <Form.Select name="currency" value={formData.currency} onChange={handleCurrencyChange}>
+                    <option value="">{t('baseCurrencyDefault')}</option>
+                    {currencies.map((c) => (
+                      <option key={c.id} value={c.id}>{c.code} - {c.name}</option>
+                    ))}
+                  </Form.Select>
+                </Form.Group>
+              </Col>
+              <Col md={4}>
+                <Form.Group className="mb-3">
+                  <Form.Label>{t('exchangeRate')} {isForeignCurrency && '*'}</Form.Label>
+                  <Form.Control
+                    type="number"
+                    step="0.000001"
+                    name="exchange_rate_used"
+                    value={formData.exchange_rate_used}
+                    onChange={handleFormChange}
+                    disabled={!isForeignCurrency}
+                    required={isForeignCurrency}
+                    min="0"
+                  />
+                  {isForeignCurrency && !formData.exchange_rate_used && (
+                    <Form.Text className="text-danger">{t('noExchangeRateFound')}</Form.Text>
+                  )}
                 </Form.Group>
               </Col>
             </Row>
